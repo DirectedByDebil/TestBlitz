@@ -1,5 +1,4 @@
 ﻿using UnityEngine;
-using System.Collections.Generic;
 using Random = System.Random;
 
 namespace Blitz
@@ -15,25 +14,24 @@ namespace Blitz
 
             _random = new Random();
             _cellSettings = new CellSettings(_settings.CellSize, _settings.ColorBlock);
-
-            _cells = new List<Cell>(_rows * _columns);
+            _cells = new Cell[_columns, _rows];
         }
 
-        public IEnumerable<IDrawable> Cells { get => _cells; }
+        public IDrawable[,] Cells { get => _cells; }
+
+        private delegate int FuncHandler(int index);
 
         private Random _random;
         private IContainer _selectedCell;
 
         private CellSettings _cellSettings;
-        private List<Cell> _cells;
+        private Cell[,] _cells;
 
         private readonly FieldSettings _settings;
         private readonly int _rows, _columns;
 
         public void CountField()
         {
-            int amountOfCells = _rows * _columns;
-
             for(int j = 0; j < _rows; j++)
             {
                 for(int i = 0; i < _columns; i++)
@@ -46,8 +44,8 @@ namespace Blitz
 
                     Cell cell = new Cell(content, _cellSettings, matrixPos);
                     cell.Exchanged += OnCellPressed;
-                    
-                    _cells.Add(cell);
+
+                    _cells[i, j] = cell;
                 }
             }
         }
@@ -60,7 +58,8 @@ namespace Blitz
             }
 
             //#TODO set max step
-            if (Vector2Int.Distance(_selectedCell.Position, cell.Position) < 2)
+            if (Vector2Int.Distance(_selectedCell.Position, cell.Position) < 2
+                && IsInRow(cell.Position))
             {
                 CellContent data = cell.Content;
                 cell.Content = _selectedCell.Content;
@@ -69,12 +68,62 @@ namespace Blitz
             _selectedCell = null;
         }
 
+        private bool IsInRow(Vector2Int position)
+        {
+            int x = position.x,
+                y = position.y;
+
+            ClampCells(out int xStart, out int xFinal, x, _columns - 1);
+            ClampCells(out int yStart, out int yFinal, y, _rows - 1);
+
+            int GetCellX(int incrementX) => _cells[incrementX, y].Content.index;
+            int GetCellY(int incrementY) => _cells[x, incrementY].Content.index;
+
+            if (CountCellsInRow(xStart, xFinal, x, GetCellX) >= 3)
+                return true;
+
+            if (CountCellsInRow(yStart, yFinal, y, GetCellY) >= 3)
+                return true;
+
+            return false;
+        }
+        private void ClampCells(out int start, out int final, int cellPosition, int border)
+        {
+            start = cellPosition >= 2 ? cellPosition - 2 : 0;
+
+            final = cellPosition <= border - 2 ? cellPosition + 2 : border;
+        }
+        private int CountCellsInRow(int startValue, int finalValue, int cellPosition, FuncHandler func)
+        {
+            int inRow = 0;
+            int needIndex = _selectedCell.Content.index;
+
+            while (startValue <= finalValue)
+            {
+                if (func(startValue) == needIndex || startValue == cellPosition)
+                    inRow++;
+                else
+                    inRow = 0;
+
+                if (inRow >= 3)
+                    return inRow;
+
+                startValue++;
+            }
+
+            return inRow;
+        }
+
         public void UnsetModel()
         {
-            foreach(Cell cell in _cells)
+            for(int j = 0; j < _rows; j++)
             {
-                cell.Exchanged -= OnCellPressed;
-                cell.UnsetModel();
+                for(int i = 0; i < _columns; i++)
+                {
+                    Cell cell = _cells[i, j];
+                    cell.Exchanged -= OnCellPressed;
+                    cell.UnsetModel();
+                }
             }
         }
     }

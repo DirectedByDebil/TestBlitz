@@ -24,15 +24,17 @@ namespace Blitz
 
         public void DrawField(Transform parent)
         {
-            int index = 0;
-            foreach (IDrawable cell in _field.Cells)
+            for(int j = 0; j < _rows; j++)
             {
-                Vector2 position = new Vector2(index % _columns, -index / _columns);
-                position *= _settings.CellSize;
+                for(int i = 0; i < _columns; i++)
+                {
+                    IDrawable cell = _field.Cells[i, j]; 
+                    Vector2 position = new Vector2(i, -j);
+                    position *= _settings.CellSize;
 
-                cell.Draw();
-                cell.SetParentAndPosition(parent, position);
-                index++;
+                    cell.Draw();
+                    cell.SetParentAndPosition(parent, position);
+                }
             }
         }
 
